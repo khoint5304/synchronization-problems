@@ -30,7 +30,7 @@ class __StackNode
 {
 public:
     const int value;
-    bool valid = true; // for demonstration purpose
+    bool valid = true;  // for demonstration purpose
     __StackNode *next;
 
     __StackNode(int value, __StackNode *next) : value(value), next(next) {}
@@ -60,7 +60,7 @@ public:
 
             if (sleep)
             {
-                Sleep(50); // interleave
+                Sleep(200); // interleave
             }
 
             // If the head node is still head_ptr, then assume no one has changed the stack.
@@ -154,11 +154,13 @@ int main()
     CloseHandle(thread);
 
     stack.print();
-    stack.assert_valid();
+    stack.assert_valid();  // randomly crash
 
     return 0;
 }
 ```
+
+In the example above, 2 threads are scheduled to run concurrently. The main thread calls `stack.pop(true)`, where `Sleep(200);` is used to suspend the execution of the current thread, allowing the second thread to run.
 
 ### Real-world implications
 
