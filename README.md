@@ -21,59 +21,144 @@ The ABA problem occurs when multiple threads (or processes) accessing shared dat
 ### Example
 
 ```cpp
+#include <atomic>
 #include <iostream>
+#include <stdexcept>
 #include <windows.h>
 
-int shared = 0;
-
-DWORD WINAPI thread_proc_1(void *_)
+class __StackNode
 {
-    int current = shared;
+public:
+    const int value;
+    bool valid = true; // for demonstration purpose
+    __StackNode *next;
 
-    // Mimic an operation
-    Sleep(30);
+    __StackNode(int value, __StackNode *next) : value(value), next(next) {}
+    __StackNode(int value) : __StackNode(value, nullptr) {}
+};
 
-    int now = shared;
-    if (current != now)
+class Stack
+{
+private:
+    std::atomic<__StackNode *> _head_ptr = nullptr;
+
+public:
+    /** Pop the head object and return its value */
+    int pop(bool sleep)
     {
-        std::cerr << current << " != " << now << std::endl;
+        while (true)
+        {
+            __StackNode *head_ptr = _head_ptr;
+            if (head_ptr == nullptr)
+            {
+                throw std::out_of_range("Empty stack");
+            }
+
+            // For simplicity, suppose that we can ensure that this dereference is safe
+            // (i.e., that no other thread has popped the stack in the meantime).
+            __StackNode *next_ptr = head_ptr->next;
+
+            if (sleep)
+            {
+                Sleep(50); // interleave
+            }
+
+            // If the head node is still head_ptr, then assume no one has changed the stack.
+            // (That statement is not always true because of the ABA problem)
+            // Atomically replace head node with next.
+            if (_head_ptr.compare_exchange_weak(head_ptr, next_ptr))
+            {
+                int result = head_ptr->value;
+                head_ptr->valid = false; // mark this memory as released
+                delete head_ptr;
+                return result;
+            }
+            // The stack has changed, start over.
+        }
     }
 
-    return 0;
-}
+    /** Push a value to the stack */
+    void push(int value)
+    {
+        __StackNode *value_ptr = new __StackNode(value);
+        while (true)
+        {
+            __StackNode *next_ptr = _head_ptr;
+            value_ptr->next = next_ptr;
+            // If the head node is still next, then assume no one has changed the stack.
+            // (That statement is not always true because of the ABA problem)
+            // Atomically replace head with value.
+            if (_head_ptr.compare_exchange_weak(next_ptr, value_ptr))
+            {
+                return;
+            }
+            // The stack has changed, start over.
+        }
+    }
 
-DWORD WINAPI thread_proc_2(void *_)
+    void print()
+    {
+        __StackNode *current = _head_ptr;
+        while (current != nullptr)
+        {
+            std::cout << current->value << " ";
+            current = current->next;
+        }
+        std::cout << std::endl;
+    }
+
+    void assert_valid()
+    {
+        __StackNode *current = _head_ptr;
+        while (current != nullptr)
+        {
+            if (!current->valid)
+            {
+                throw std::runtime_error("Invalid stack node");
+            }
+            current = current->next;
+        }
+    }
+};
+
+DWORD WINAPI thread_proc(void *_stack)
 {
-    shared = 1;
+    Stack *stack = (Stack *)_stack;
+    stack->pop(false);
+    stack->pop(false);
+    stack->push(40);
+
     return 0;
 }
 
 int main()
 {
-    HANDLE thread_1 = CreateThread(
-        NULL,             // lpThreadAttributes
-        0,                // dwStackSize
-        &thread_proc_1,   // lpStartAddress
-        NULL,             // lpParameter
-        CREATE_SUSPENDED, // dwCreationFlags
-        NULL              // lpThreadId
+    Stack stack;
+    stack.push(10);
+    stack.push(20);
+    stack.push(30);
+    stack.push(40);
+
+    HANDLE thread = CreateThread(
+        NULL,         // lpThreadAttributes
+        0,            // dwStackSize
+        &thread_proc, // lpStartAddress
+        &stack,       // lpParameter
+        0,            // dwCreationFlags
+        NULL          // lpThreadId
     );
-    HANDLE thread_2 = CreateThread(NULL, 0, &thread_proc_2, NULL, CREATE_SUSPENDED, NULL);
 
-    ResumeThread(thread_1);
-    ResumeThread(thread_2);
+    stack.pop(true);
 
-    WaitForSingleObject(thread_1, INFINITE);
-    WaitForSingleObject(thread_2, INFINITE);
+    WaitForSingleObject(thread, INFINITE);
+    CloseHandle(thread);
 
-    CloseHandle(thread_1);
-    CloseHandle(thread_2);
+    stack.print();
+    stack.assert_valid();
 
     return 0;
 }
 ```
-
-Running the example above multiple times will randomly print `0 != 1` to the standard error. It is worth noted that the problem wasn't caused by non-atomical operations - changing `int shared = 0;` to `std::atomic<int> shared(0);` will cause the identical problem. Rather, the ABA problem occurs at a higher level and is a result of poor algorithm design.
 
 ### Real-world implications
 
