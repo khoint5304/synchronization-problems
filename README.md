@@ -160,7 +160,9 @@ int main()
 }
 ```
 
-In the example above, 2 threads are scheduled to run concurrently. The main thread calls `stack.pop(true)`, where `Sleep(200);` is used to suspend the execution of the current thread, allowing the second thread to run.
+In the example above, 2 threads are scheduled to run concurrently. To promote the occurrence of the ABA problem, the main thread calls `stack.pop(true)` with `Sleep(200)` to suspend the execution of the current thread, allowing other threads to run during this interruption. Before interleaving the main thread, the local pointer variable `head_ptr` points to `40` and `next_ptr` points to 30. Then, the second thread is likely to run during the suspension of the main one. We can assume that while the main thread is sleeping, the second one completes its operations (2 `pop`s and 1 `push`), transforms the stack into `[10, 20, 40]` and deallocates the memory of the node `30`. Afterwards, the main thread resumes its execution, where the method call `_head_ptr.compare_exchange_weak(head_ptr, next_ptr)` returns `true` (since the top of the stack is still `40`). It then sets `next_ptr` (which is a pointer to `30`) as the top of the stack. But since this memory is deallocated, it is unsafe to perform the assignment. Thus running the program above will randomly crash at the line `stack.assert_valid();`
+
+It is worth noticing that since the memory pointed by `next_ptr` may not be touched anyway after deallocation, assigning `next_ptr` in the main thread still appears to work correctly (in this example, we have to clear a flag `valid` to mark the node as deallocated). Accessing freed memory is undefined behavior: this may result in crashes, data corruption or even just silently appear to work correctly.
 
 ### Real-world implications
 
