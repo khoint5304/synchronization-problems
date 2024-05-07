@@ -175,3 +175,35 @@ Several approaches can help mitigate the ABA problem:
 * **Atomic operations:** In specific scenarios, employing atomic operations that combine read and write into a single, indivisible step can eliminate the window of vulnerability between reads. However, atomic operations might not be suitable for all situations.
 
 By understanding the ABA problem and implementing appropriate synchronization techniques, developers can ensure the integrity of data in multithreaded environments.
+
+##[Race condition](https://en.wikipedia.org/wiki/Race_condition)
+
+Bài toán "Race Condition" là một vấn đề phổ biến trong lập trình đa luồng, xảy ra khi hai hoặc nhiều tiến trình hoặc luồng cố gắng thực hiện cùng một tài nguyên hoặc hoạt động đồng thời mà không có sự đồng bộ hóa đúng đắn. Kết quả của việc này là không thể dự đoán được, và phụ thuộc vào thứ tự thực thi của các tiến trình hoặc luồng.
+
+Trong một race condition, kết quả của một chương trình có thể thay đổi dựa trên cách thực thi của hệ thống, khiến cho kết quả không ổn định hoặc không đoán trước được. Điều này có thể gây ra các vấn đề nghiêm trọng như lỗi dữ liệu, sự cố không xác định được, hoặc thậm chí là lỗi bảo mật.
+
+Các race condition thường xảy ra trong các trường hợp sau:
+1. **Đọc/Ghi dữ liệu:** Khi một tiến trình đọc dữ liệu cùng lúc với một tiến trình khác đang ghi dữ liệu vào cùng một vị trí bộ nhớ.
+2. **Thực thi đồng thời của các luồng:** Khi hai hoặc nhiều luồng cố gắng thực hiện một phần của mã mà có thể tác động đến dữ liệu chia sẻ hoặc trạng thái của hệ thống.
+3. **Sử dụng tài nguyên hệ thống:** Khi các tiến trình hoặc luồng cố gắng truy cập và sử dụng cùng một tài nguyên hệ thống, chẳng hạn như một tệp hoặc một cổng I/O.
+
+Để giải quyết vấn đề race condition, cần sử dụng các kỹ thuật đồng bộ hóa như mutex, semaphore, hoặc các cơ chế khác để đảm bảo rằng chỉ một tiến trình hoặc luồng có thể truy cập vào một tài nguyên hoặc hoạt động cùng một lúc.
+
+### Example
+
+
+Bài toán "Race Condition" có thể ảnh hưởng đến nhiều lĩnh vực trong thực tế, từ phần mềm máy tính đến hệ thống điều khiển các thiết bị cơ học và điện tử. Dưới đây là một số ví dụ về ứng dụng của bài toán này trong thực tế:
+
+1. **Hệ thống ghi log:**
+   Trong một ứng dụng hoặc dịch vụ web, nhiều luồng hoặc tiến trình có thể cố gắng ghi log đồng thời vào một tệp log. Nếu không có sự đồng bộ hóa, các lời ghi log có thể bị ghi đè lên nhau, dẫn đến mất dữ liệu hoặc dữ liệu không hợp lệ.
+
+2. **Quản lý tài nguyên mạng:**
+   Trong hệ thống mạng, nhiều tiến trình hoặc luồng có thể cố gắng thay đổi cấu hình mạng hoặc quản lý kết nối cùng một lúc. Nếu không có sự đồng bộ hóa, có thể xảy ra tình trạng truy cập song song vào các tài nguyên mạng, dẫn đến lỗi kết nối hoặc mất mát dữ liệu.
+
+3. **Ứng dụng đa luồng trên thiết bị di động:**
+   Trong các ứng dụng di động, các luồng có thể cố gắng truy cập và cập nhật cùng một dữ liệu, chẳng hạn như dữ liệu người dùng hoặc cài đặt ứng dụng. Nếu không có sự đồng bộ hóa, có thể xảy ra tình trạng đọc/ghi không đồng bộ, dẫn đến mất mát dữ liệu hoặc trạng thái ứng dụng không đoán trước được.
+
+4. **Hệ thống điều khiển tự động:**
+   Trong hệ thống điều khiển tự động như hệ thống đo lường và điều khiển công nghiệp, nhiều tiến trình hoặc luồng có thể cố gắng điều khiển các thiết bị cùng một lúc. Nếu không có sự đồng bộ hóa, có thể xảy ra tình trạng không đoán trước được, dẫn đến việc hoạt động không ổn định hoặc nguy hiểm.
+
+Trong tất cả các trường hợp trên, việc áp dụng các kỹ thuật đồng bộ hóa như mutex, semaphore, hoặc thậm chí là tái thiết kế cấu trúc dữ liệu để tránh race condition là rất quan trọng để đảm bảo tính ổn định và an toàn của hệ thống.
