@@ -191,6 +191,47 @@ Các race condition thường xảy ra trong các trường hợp sau:
 
 ### Example
 
+```cpp
+#include <iostream>
+#include <windows.h>
+
+int shared = 0;
+
+void update()
+{
+    for (int i = 0; i < 200000; i++)
+    {
+        shared++;
+    }
+}
+
+DWORD WINAPI thread_proc(void *)
+{
+    update();
+    return 0;
+}
+
+int main()
+{
+    HANDLE thread = CreateThread(
+        NULL,         // lpThreadAttributes
+        0,            // dwStackSize
+        &thread_proc, // lpStartAddress
+        NULL,         // lpParameter
+        0,            // dwCreationFlags
+        NULL          // lpThreadId
+    );
+
+    update();
+
+    WaitForSingleObject(thread, INFINITE);
+    CloseHandle(thread);
+
+    std::cout << shared << std::endl;
+
+    return 0;
+}
+```
 
 Bài toán "Race Condition" có thể ảnh hưởng đến nhiều lĩnh vực trong thực tế, từ phần mềm máy tính đến hệ thống điều khiển các thiết bị cơ học và điện tử. Dưới đây là một số ví dụ về ứng dụng của bài toán này trong thực tế:
 
