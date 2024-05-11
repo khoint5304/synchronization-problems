@@ -196,99 +196,108 @@ Here is the description for this problem
 ### Example
 
 ```cpp
+#include <chrono>
 #include <iostream>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
+#include <random>
+#include <windows.h>
 
-// Ingredients
-enum Ingredient { TOBACCO, PAPER, MATCHES };
+std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 
-// Shared resources
-bool tobacco_on_table = false;
-bool paper_on_table = false;
-bool matches_on_table = false;
-
-// Semaphores
-std::mutex mtx;
-std::condition_variable cv;
-
-// Agent places random items on the table
-void agent()
+template <typename T>
+T random_int(const T l, const T r)
 {
-    while (true)
+    std::uniform_int_distribution<T> unif(l, r);
+    return unif(rng);
+}
+
+HANDLE smoking;
+std::vector<HANDLE> semaphores;
+
+void synchronization_primitives()
+{
+    smoking = CreateSemaphoreW(NULL, 0, 1, NULL);
+    for (int i = 0; i < 3; i++)
     {
-        std::unique_lock<std::mutex> lock(mtx);
-        // Randomly select two ingredients
-        int random_ingredient1 = rand() % 3;
-        int random_ingredient2 = (random_ingredient1 + 1) % 3;
-
-        if (random_ingredient1 == TOBACCO && random_ingredient2 == PAPER)
-        {
-            tobacco_on_table = true;
-            paper_on_table = true;
-        }
-        else if (random_ingredient1 == PAPER && random_ingredient2 == MATCHES)
-        {
-            paper_on_table = true;
-            matches_on_table = true;
-        }
-        else if (random_ingredient1 == MATCHES && random_ingredient2 == TOBACCO)
-        {
-            matches_on_table = true;
-            tobacco_on_table = true;
-        }
-
-        cv.notify_all(); // Signal smokers
-        cv.wait(lock);   // Wait for smoker to finish
+        semaphores.push_back(CreateSemaphoreW(NULL, 0, 1, NULL));
     }
 }
 
-// Smoker thread
-void smoker(int ingredient)
+DWORD WINAPI agent(void *)
 {
     while (true)
     {
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [ingredient]
-        {
-            switch (ingredient)
-            {
-                case TOBACCO: return paper_on_table && matches_on_table;
-                case PAPER: return tobacco_on_table && matches_on_table;
-                case MATCHES: return tobacco_on_table && paper_on_table;
-            }
-            return false;
-        });
+        int ingredient = random_int(0, 2), next_ingredient = (1 + ingredient) % 3;
+        std::cout << "Got ingredients " << ingredient << ", " << next_ingredient << std::endl;
 
-        // Make and smoke the cigarette
-        std::cout << "Smoker with ingredient " << ingredient << " is smoking." << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-        // Clear the table
-        tobacco_on_table = false;
-        paper_on_table = false;
-        matches_on_table = false;
-
-        cv.notify_one(); // Signal agent
+        ReleaseSemaphore(semaphores[ingredient], 1, NULL);
+        ReleaseSemaphore(semaphores[next_ingredient], 1, NULL);
+        WaitForSingleObject(smoking, INFINITE);
     }
-}
-
-int main()
-{
-    std::thread agent_thread(agent);
-    std::thread smoker_tobacco(smoker, TOBACCO);
-    std::thread smoker_paper(smoker, PAPER);
-    std::thread smoker_matches(smoker, MATCHES);
-
-    agent_thread.join();
-    smoker_tobacco.join();
-    smoker_paper.join();
-    smoker_matches.join();
 
     return 0;
 }
 
+DWORD WINAPI smoker(void *ptr)
+{
+    int ingredient = *(int *)ptr;
+    while (true)
+    {
+        WaitForSingleObject(semaphores[(ingredient + 1) % 3], INFINITE);
+        std::cout << "Smoker " << ingredient << " got " << (ingredient + 1) % 3 << std::endl;
+        WaitForSingleObject(semaphores[(ingredient + 2) % 3], INFINITE);
+        std::cout << "Smoker " << ingredient << " got " << (ingredient + 2) % 3 << std::endl;
+        std::cout << "Smoker " << ingredient << " is smoking" << std::endl;
+        Sleep(500);
+        std::cout << "Smoker " << ingredient << " is done" << std::endl;
+        ReleaseSemaphore(smoking, 1, NULL);
+    }
+
+    return 0;
+}
+
+int main()
+{
+    synchronization_primitives();
+
+    std::vector<HANDLE> threads;
+    threads.push_back(
+        CreateThread(
+            NULL,   // lpThreadAttributes
+            0,      // dwStackSize
+            &agent, // lpStartAddress
+            NULL,   // lpParameter
+            0,      // dwCreationFlags
+            NULL)   // lpThreadId
+    );
+
+    int *ingredient_ptr[3];
+    for (int i = 0; i < 3; i++)
+    {
+        ingredient_ptr[i] = new int(i);
+        threads.push_back(
+            CreateThread(
+                NULL,              // lpThreadAttributes
+                0,                 // dwStackSize
+                &smoker,           // lpStartAddress
+                ingredient_ptr[i], // lpParameter
+                0,                 // dwCreationFlags
+                NULL)              // lpThreadId
+        );
+    }
+
+    for (auto &thread : threads)
+    {
+        WaitForSingleObject(thread, INFINITE);
+        CloseHandle(thread);
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+        delete ingredient_ptr[i];
+    }
+
+    return 0;
+}
 ```
 
 In the example above, The `agent` thread randomly places two ingredients on the table. Each `smoker` thread waits for the required ingredients, makes a cigarette, smokes it, and then signals the agent to continue.
