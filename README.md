@@ -175,3 +175,155 @@ Several approaches can help mitigate the ABA problem:
 * **Atomic operations:** In specific scenarios, employing atomic operations that combine read and write into a single, indivisible step can eliminate the window of vulnerability between reads. However, atomic operations might not be suitable for all situations.
 
 By understanding the ABA problem and implementing appropriate synchronization techniques, developers can ensure the integrity of data in multithreaded environments.
+
+## Cigarette smokers problem
+
+The cigarette smokers problem is a classic concurrency problem in computer science. This problem highlights the challenges of coordinating multiple processes or threads that share resources and need to synchronize their actions.
+
+Here is the description for this problem
+* **Ingredients:** Imagine a scenario where there are three ingredients required to make and smoke a cigarette: tobacco, paper, and matches.
+* **Participants:** Around a table, there are three smokers, each of whom has an infinite supply of one of the three ingredients:
+  1. One smoker has an infinite supply of tobacco.
+  2. Another smoker has an infinite supply of paper.
+  3. The third smoker has an infinite supply of matches.
+* **Non-smoking Agent:** There is also a non-smoking agent who enables the smokers to make their cigarettes. The agent randomly selects two of the supplies and places them on the table.
+* **Smoking Process:**
+  1. The smoker who has the third supply should remove the two items from the table.
+  2. They use these items (along with their own supply) to make a cigarette, which they smoke for a while.
+  3. Once the smoker finishes smoking, the agent places two new random items on the table.
+  4. This process continues indefinitely.
+
+### Example
+
+```cpp
+#include <chrono>
+#include <iostream>
+#include <random>
+#include <windows.h>
+
+std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+
+template <typename T>
+T random_int(const T l, const T r)
+{
+    std::uniform_int_distribution<T> unif(l, r);
+    return unif(rng);
+}
+
+HANDLE smoking;
+std::vector<HANDLE> semaphores;
+
+void synchronization_primitives()
+{
+    smoking = CreateSemaphoreW(NULL, 0, 1, NULL);
+    for (int i = 0; i < 3; i++)
+    {
+        semaphores.push_back(CreateSemaphoreW(NULL, 0, 1, NULL));
+    }
+}
+
+DWORD WINAPI agent(void *)
+{
+    while (true)
+    {
+        int ingredient = random_int(0, 2), next_ingredient = (1 + ingredient) % 3;
+        std::cout << "Got ingredients " << ingredient << ", " << next_ingredient << std::endl;
+
+        ReleaseSemaphore(semaphores[ingredient], 1, NULL);
+        ReleaseSemaphore(semaphores[next_ingredient], 1, NULL);
+        WaitForSingleObject(smoking, INFINITE);
+    }
+
+    return 0;
+}
+
+DWORD WINAPI smoker(void *ptr)
+{
+    int ingredient = *(int *)ptr;
+    while (true)
+    {
+        WaitForSingleObject(semaphores[(ingredient + 1) % 3], INFINITE);
+        std::cout << "Smoker " << ingredient << " got " << (ingredient + 1) % 3 << std::endl;
+        WaitForSingleObject(semaphores[(ingredient + 2) % 3], INFINITE);
+        std::cout << "Smoker " << ingredient << " got " << (ingredient + 2) % 3 << std::endl;
+        std::cout << "Smoker " << ingredient << " is smoking" << std::endl;
+        Sleep(500);
+        std::cout << "Smoker " << ingredient << " is done" << std::endl;
+        ReleaseSemaphore(smoking, 1, NULL);
+    }
+
+    return 0;
+}
+
+int main()
+{
+    synchronization_primitives();
+
+    std::vector<HANDLE> threads;
+    threads.push_back(
+        CreateThread(
+            NULL,   // lpThreadAttributes
+            0,      // dwStackSize
+            &agent, // lpStartAddress
+            NULL,   // lpParameter
+            0,      // dwCreationFlags
+            NULL)   // lpThreadId
+    );
+
+    int *ingredient_ptr[3];
+    for (int i = 0; i < 3; i++)
+    {
+        ingredient_ptr[i] = new int(i);
+        threads.push_back(
+            CreateThread(
+                NULL,              // lpThreadAttributes
+                0,                 // dwStackSize
+                &smoker,           // lpStartAddress
+                ingredient_ptr[i], // lpParameter
+                0,                 // dwCreationFlags
+                NULL)              // lpThreadId
+        );
+    }
+
+    for (auto &thread : threads)
+    {
+        WaitForSingleObject(thread, INFINITE);
+        CloseHandle(thread);
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+        delete ingredient_ptr[i];
+    }
+
+    return 0;
+}
+```
+
+In the example above, The `agent` thread randomly places two ingredients on the table. Each `smoker` thread waits for the required ingredients, makes a cigarette, smokes it, and then signals the agent to continue.
+
+### Real-world implications
+
+The Cigarette Smokers Problem in computer science, beyond being a theoretical exercise, has real-world implications, particularly in the field of concurrent programming and operating systems. Here are some of the key implications:
+* **Deadlock Prevention** The problem demonstrates a scenario where deadlock can occur if resources are not managed properly. In real-world systems, such as databases and operating systems, managing access to shared resources is crucial to prevent deadlock, which can cause systems to halt or become unresponsive.
+* **Resource Allocation** It illustrates the challenges in allocating limited resources among competing processes or threads. This is analogous to real-world situations where multiple applications or users require access to a finite set of resources, such as CPU time, memory, or network bandwidth.
+* **Synchronization Mechanisms** The problem highlights the importance of proper synchronization mechanisms, like semaphores, locks, and condition variables, to coordinate the actions of concurrent processes. These mechanisms are widely used in developing multi-threaded applications, ensuring that processes operate in the correct sequence without interfering with each other.
+* **System Design** It emphasizes the need for careful system design to avoid complex interdependencies that can lead to deadlock. This is relevant for designing systems that are robust, scalable, and maintainable.
+* **Understanding Concurrency** The problem serves as an educational tool to help programmers understand the complexities of concurrency, which is essential for developing efficient and reliable software in a multi-core and distributed computing world.
+* **Semaphore Limitations** The problem also points out the limitations of traditional semaphores and the need for more powerful synchronization primitives in certain scenarios.
+
+### Addressing the Cigarette Smokers Problem
+
+Several approaches can help mitigate the Cigarette Smokers Problem:
+* **Deadlock Avoidance:** Implement a deadlock avoidance strategy to prevent the system from entering a deadlock state.
+* **Priority-Based Allocation:** Assign priorities to processes or threads. When allocating resources, give preference to higher-priority processes. This helps prevent low-priority processes from blocking critical resources indefinitely.
+* **Resource Pooling:** Create a pool of resources (e.g., semaphores or locks) that processes can request. When a process is done, it releases the resource back to the pool. This avoids resource exhaustion and ensures fair access.
+* **Two-Phase Locking:** In database management systems, use two-phase locking to ensure that transactions acquire and release locks in a consistent order. This helps prevent deadlocks during data updates.
+* **Timeouts and Rollbacks:** If a process waits too long for a resource, introduce a timeout. If the timeout expires, the process releases its resources and rolls back its work. This prevents indefinite waiting.
+* **Resource Hierarchies:** Assign a hierarchy to resources (e.g., locks). Processes must acquire resources in a specific order (from lower to higher levels). This prevents circular waits.
+* **Dynamic Resource Allocation:** Dynamically allocate resources based on demand. For example, allocate memory or threads as needed and release them when no longer required.
+* **Avoidance of Hold-and-Wait:** Processes should request all required resources upfront (non-preemptive). If a process cannot acquire all resources, it releases any acquired resources and retries later.
+* **Preemption:** If a high-priority process needs a resource held by a lower-priority process, preempt the lower-priority process and allocate the resource to the higher-priority one.
+* **Transaction Serialization:** In database systems, ensure that transactions are serialized (executed one after the other) to avoid conflicts and deadlocks.
+
+In summary, the Cigarette Smokers Problem is not just a theoretical construct but a representation of the real challenges faced in concurrent programming and system design. It encourages developers to think critically about process synchronization, resource allocation, and system robustness in the context of concurrent operations.
