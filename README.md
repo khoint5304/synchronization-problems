@@ -3,6 +3,7 @@
 Problems commonly found when implementing concurrency and parallelism.
 
 Students:
+- Nguyen Thai Khoi 20224868
 - Nguyen Thai Hoa 20224850
 - Vu Tung Lam 20225140
 
