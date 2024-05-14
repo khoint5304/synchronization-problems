@@ -20,6 +20,33 @@ The following table compares the differences between different forms of executio
 
 ## Synchronization primitives
 
+### Event
+
+Event object is used to notify multiple threads that an event has happened. It usually has 3 public methods: `wait`, `set`, `clear`.
+
+An event object manages an internal flag. If the flag is `true`, any calls to `wait` will return immediately. If the flag is `false`, the wait method will suspend the current thread and wait for the flag to become `true` before returning.
+
+The internal flag can be switched by `set` and `clear` methods.
+
+### Lock
+
+Mutex lock to guarantee exclusive access to a shared state. It usually has 2 public methods: `acquire` and `release`. A Lock object can be in one of two states: "locked" or "unlocked".
+
+If the lock is "locked", all threads that call `acquire` will be put in a waiting FIFO queue and will proceed in order for each release call.
+
+If the lock is "unlocked", calling `acquire` will set the lock to the "locked" state and return immediately.
+
+The `release` method will release the lock held by the current thread. If the lock isn't acquired then this method does nothing.
+
+### Semaphore
+
+A semaphore object that allows a limited number of threads to acquire it. Similar to a lock, the semaphore usually has 2 public methods: `acquire` and `release`.
+
+A semaphore is a synchronization primitive that maintains a counter indicating the number of available resources or permits. In this implementation, the semaphore keeps track of an internal counter. The counter is decremented each time a future acquires the semaphore using the `acquire` method and incremented each time the semaphore is released using the `release` method.
+
+When multiple threads are waiting for the semaphore, they will be put in a FIFO queue and only the first one will proceed when the semaphore becomes available.
+
+If the internal counter of the semaphore has an upper limit of 1, it is identical to a lock.
 
 ## ABA Problem
 
