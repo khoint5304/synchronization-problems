@@ -486,11 +486,6 @@ Atomicity violations occur when a sequence of operations that should be executed
    - **Immutable Objects**: Use immutable objects to avoid the need for synchronization on shared data.
    - **Design for Concurrency**: Design the application with concurrency in mind from the start, considering how threads will interact with shared resources.
 
-#### Example Code: Atomicity Violation and Solution
-
-
-
-
 ### Lost Wakeup
 
 **Lost wakeup** occurs in concurrent programming when a thread misses a signal (or wakeup call) indicating that a condition it is waiting for has been met, leading to potential indefinite blocking. This typically happens when using condition variables, semaphores, or other synchronization mechanisms.
@@ -529,6 +524,3 @@ Atomicity violations occur when a sequence of operations that should be executed
      - Be aware that some systems can cause spurious wakeups, where a thread is woken up without a corresponding signal. Always use a loop to recheck the condition after being woken up.
    - **Semaphore Alternatives**:
      - Use other synchronization primitives that may be less prone to lost wakeups, such as `CountDownLatch` or `CyclicBarrier` in Java.
-
-#### Example Code: Lost Wakeup and Solutions
-
