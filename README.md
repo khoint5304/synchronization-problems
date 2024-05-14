@@ -1,4 +1,26 @@
-## [ABA Problem](https://en.wikipedia.org/wiki/ABA_problem)
+# Synchronization problems
+
+Problems commonly found when implementing concurrency and parallelism.
+
+Students:
+- Nguyen Thai Hoa 20224850
+
+## Concurrency
+In computer science, concurrency is the ability of different parts or units of a program, algorithm, or problem to be executed out-of-order or in partial order, without affecting the outcome. This allows for parallel execution of the concurrent units, which can significantly improve overall speed of the execution in multi-processor and multi-core systems. In more technical terms, concurrency refers to the decomposability of a program, algorithm, or problem into order-independent or partially-ordered components or units of computation.
+
+According to Rob Pike, concurrency is the composition of independently executing computations, and concurrency is not parallelism: concurrency is about dealing with lots of things at once but parallelism is about doing lots of things at once. Concurrency is about structure, parallelism is about execution, concurrency provides a way to structure a solution to solve a problem that may (but not necessarily) be parallelizable.
+
+The following table compares the differences between different forms of execution.
+
+|             | Singlethreading (synchronous) | Singlethreading (asynchronous) | Multithreading | Multiprocessing |
+| ----------- | :---------------------------: | :----------------------------: | :------------: | :-------------: |
+| Concurrency | | x | x | x |
+| Parallelism | | | x | x |
+
+## Synchronization primitives
+
+
+## ABA Problem
 
 The ABA problem is a subtle challenge that can arise in multithreaded programming when dealing with shared memory. It occurs during synchronization, specifically when relying solely on a variable's current value to determine if data has been modified.
 
@@ -19,6 +41,8 @@ The ABA problem occurs when multiple threads (or processes) accessing shared dat
 7. $P_1$ determines that the shared memory value has not changed and continues.
 
 ### Example
+
+An example illustrating how the ABA problem occurs:
 
 ```cpp
 #include <atomic>
@@ -164,7 +188,11 @@ In the example above, 2 threads are allowed to run concurrently. To promote the 
 
 It is worth noticing that since the memory pointed by `next_ptr` may not be touched anyway after deallocation, assigning `next_ptr` in the main thread still appears to work correctly (in this example, we have to clear a flag `valid` to mark the node as deallocated). Accessing freed memory is undefined behavior: this may result in crashes, data corruption or even just silently appear to work correctly.
 
-### Real-world implications
+#### Workarounds
+
+A common workaround is to add extra "tag" or "stamp" bits to the quantity being considered. For example, an algorithm using compare and swap on a pointer might use the low bits of the address to indicate how many times the pointer has been successfully modified. Because of this, the next compare-and-swap will fail, even if the addresses are the same, because the tag bits will not match. This is sometimes called ABAʹ since the second A is made slightly different from the first. Such tagged state references are also used in transactional memory. Although a tagged pointer can be used for implementation, a separate tag field is preferred if double-width CAS is available.
+
+In the example above, it is possible to add a `version` field to the `Stack`, indicating the number of times the stack has been updated. Instead of comparing `_head_ptr.compare_exchange_weak(next_ptr, value_ptr)`, we can compare the stack's version before and after performing assignments.
 
 ### Addressing the ABA Problem
 
