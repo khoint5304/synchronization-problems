@@ -4,6 +4,7 @@ Problems commonly found when implementing concurrency and parallelism.
 
 Students:
 - Nguyen Thai Hoa 20224850
+- Vu Tung Lam 20225140
 
 ## Concurrency
 In computer science, concurrency is the ability of different parts or units of a program, algorithm, or problem to be executed out-of-order or in partial order, without affecting the outcome. This allows for parallel execution of the concurrent units, which can significantly improve overall speed of the execution in multi-processor and multi-core systems. In more technical terms, concurrency refers to the decomposability of a program, algorithm, or problem into order-independent or partially-ordered components or units of computation.
